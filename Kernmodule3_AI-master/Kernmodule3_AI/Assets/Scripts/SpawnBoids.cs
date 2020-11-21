@@ -9,19 +9,27 @@ public class SpawnBoids : MonoBehaviour
     public GameObject[] boids;
 
     public GameObject boid;
-    public GameObject centerObject;
-
-    public Camera mainCamera;
 
     public int maxBoids;
     public int maxArea;
+
+
+    [Range(1.0f,200.0f)]
+    public float centerSpeed = 200;
+    [Range(1.0f, 10.0f)]
+    public float avoidRange = 5;
+
+    private Vector3 waypoint = new Vector3(0,0,0);
 
 
     void Start()
     {
         boids = new GameObject[maxBoids];
 
-        mainCamera.orthographicSize = maxArea;
+        Camera.main.orthographicSize = maxArea / 2;
+        GameObject Floor = GameObject.CreatePrimitive(PrimitiveType.Plane);
+        Floor.transform.localScale = new Vector3(4, 1, 4);
+        
 
         for (int i = 0; i < maxBoids; i++)
         {
@@ -36,7 +44,7 @@ public class SpawnBoids : MonoBehaviour
 
         if (Input.GetMouseButtonDown(0))
         {
-            WayPoint();
+            waypoint = CastRay();
         }
     }
     public void MoveBoids()
@@ -44,7 +52,8 @@ public class SpawnBoids : MonoBehaviour
 
         foreach (GameObject boid in boids)
         {
-            boid.GetComponent<Rigidbody>().velocity = boid.GetComponent<Rigidbody>().velocity + Center(boid) + Avoide(boid) + Align(boid);
+            //boid.GetComponent<Rigidbody>().velocity = boid.GetComponent<Rigidbody>().velocity + Center(boid) + Avoide(boid) + Align(boid);
+            boid.GetComponent<Rigidbody>().velocity = boid.GetComponent<Rigidbody>().velocity + Avoide(boid) + Waypoint(boid);
         }
 
     }
@@ -56,10 +65,7 @@ public class SpawnBoids : MonoBehaviour
             {
                 boid.transform.position = new Vector3(-boid.transform.position.x, boid.transform.position.y, boid.transform.position.z);
             }
-            if (boid.transform.position.y > maxArea || boid.transform.position.y < -maxArea)
-            {
-                boid.transform.position = new Vector3(boid.transform.position.x, -boid.transform.position.y, boid.transform.position.z);
-            }
+           
             if (boid.transform.position.z > maxArea || boid.transform.position.z < -maxArea)
             {
                 boid.transform.position = new Vector3(boid.transform.position.x, boid.transform.position.y, -boid.transform.position.z);
@@ -80,8 +86,9 @@ public class SpawnBoids : MonoBehaviour
         center = center / (maxBoids - 1);
         Debug.DrawLine(center, b.transform.position, Color.white, 0.01f);
 
-        return (center - b.transform.position) / 100;
+        return (center - b.transform.position) / centerSpeed;
     }
+
     Vector3 Avoide(GameObject b)
     {
         Vector3 c = Vector3.zero;
@@ -90,12 +97,12 @@ public class SpawnBoids : MonoBehaviour
         {
             if (boid != b)
             {
-                if(Vector3.Distance(boid.transform.position, b.transform.position) < 5)
+                if(Vector3.Distance(boid.transform.position, b.transform.position) < avoidRange)
                 {
                     //d = ((x2 - x1)2 + (y2 - y1)2 + (z2 - z1)2)1/2  
                     //Debug.Log("Dist: " + Vector3.Distance(boid.transform.position, b.transform.position));
 
-                    c =  c - (boid.transform.position - b.transform.position);
+                    c =  c - (boid.transform.position - b.transform.position) /10;
                     Debug.DrawLine(boid.transform.position, b.transform.position, Color.red, 0.01f);
                 }
             }
@@ -117,16 +124,28 @@ public class SpawnBoids : MonoBehaviour
 
         return (speed - b.GetComponent<Rigidbody>().velocity) / 200;
     }
-    Vector3 WayPoint()
+    Vector3 Waypoint(GameObject b)
     {
-        Vector3 waypoint = Vector3.zero;
+        Vector3 center = waypoint;
 
-        foreach(GameObject boid in boids)
+        if (Vector3.Distance(b.transform.position, center) > avoidRange)
         {
-            boid.GetComponent<Rigidbody>().velocity = new Vector3(0, 0, 0);
+
+            return (center - b.transform.position) / centerSpeed;
         }
-        return waypoint;
+
+        Debug.DrawLine(center, b.transform.position, Color.white, 0.01f);
+
+        return Vector3.zero;
     }
+    Vector3 CastRay()
+    {
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        Debug.DrawRay(Camera.main.transform.position, ray.GetPoint(20),Color.blue,4);
+        Debug.Log(ray.GetPoint(20));
+        return new Vector3(ray.GetPoint(20).x,0, ray.GetPoint(20).z);
+    }
+    
 
     
   

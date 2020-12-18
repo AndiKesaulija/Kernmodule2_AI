@@ -327,10 +327,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   boids: []
   boid: {fileID: 8274283098161759987, guid: 513f71cd2fac7aa46bcc7571328d8302, type: 3}
-  maxBoids: 3
-  maxArea: 40
-  centerSpeed: 200
-  avoidRange: 5
+  maxBoids: 80
+  trackCohesion: 1
+  trackSeperation: 1
+  trackAlignment: 1
+  trackBreakOff: 1
+  trackWaypoint: 0
+  avoidRange: 2
 --- !u!4 &1973143142
 Transform:
   m_ObjectHideFlags: 0

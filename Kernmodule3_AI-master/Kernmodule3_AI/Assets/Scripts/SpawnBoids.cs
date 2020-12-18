@@ -11,25 +11,33 @@ public class SpawnBoids : MonoBehaviour
     public GameObject boid;
 
     public int maxBoids;
-    public int maxArea;
-
-
-    [Range(1.0f,200.0f)]
-    public float centerSpeed = 200;
-    [Range(1.0f, 10.0f)]
-    public float avoidRange = 5;
+    public static int maxArea = 60;
 
     private Vector3 waypoint = new Vector3(0,0,0);
+
+    public bool trackCohesion;
+    public bool trackSeperation;
+    public bool trackAlignment;
+    public bool trackBreakOff;
+
+    public bool trackWaypoint;
+
+
+
+    [Range(1.0f, 10.0f)]
+    public float avoidRange;
+    
+
+
 
 
     void Start()
     {
         boids = new GameObject[maxBoids];
 
-        Camera.main.orthographicSize = maxArea / 2;
+        Camera.main.orthographicSize = maxArea;
         GameObject Floor = GameObject.CreatePrimitive(PrimitiveType.Plane);
-        Floor.transform.localScale = new Vector3(4, 1, 4);
-        
+        Floor.transform.localScale = new Vector3(maxArea, 1, maxArea);
 
         for (int i = 0; i < maxBoids; i++)
         {
@@ -40,7 +48,6 @@ public class SpawnBoids : MonoBehaviour
     void Update()
     {
         MoveBoids();
-        HandleBoids();
 
         if (Input.GetMouseButtonDown(0))
         {
@@ -49,107 +56,137 @@ public class SpawnBoids : MonoBehaviour
     }
     public void MoveBoids()
     {
-
         foreach (GameObject boid in boids)
         {
-            //boid.GetComponent<Rigidbody>().velocity = boid.GetComponent<Rigidbody>().velocity + Center(boid) + Avoide(boid) + Align(boid);
-            boid.GetComponent<Rigidbody>().velocity = boid.GetComponent<Rigidbody>().velocity + Avoide(boid) + Waypoint(boid);
-        }
+            boid.GetComponent<Rigidbody>().velocity = boid.GetComponent<Rigidbody>().velocity + HandleBoids(boid);
 
+            if (trackBreakOff == true) { BreakOff(boid); }
+            LimitVelocity(boid);
+
+            boid.transform.rotation = Quaternion.LookRotation(boid.GetComponent<Rigidbody>().velocity);
+
+            //Villager behavior
+            //boid.GetComponent<Rigidbody>().velocity = boid.GetComponent<Rigidbody>().velocity + (Waypoint(boid) + Avoide(boid)+ Align(boid));
+        }
     }
-    public void HandleBoids()
+
+    Vector3 HandleBoids(GameObject b)
     {
-        foreach (GameObject boid in boids)
-        {
-            if (boid.transform.position.x > maxArea || boid.transform.position.x < -maxArea)
-            {
-                boid.transform.position = new Vector3(-boid.transform.position.x, boid.transform.position.y, boid.transform.position.z);
-            }
-           
-            if (boid.transform.position.z > maxArea || boid.transform.position.z < -maxArea)
-            {
-                boid.transform.position = new Vector3(boid.transform.position.x, boid.transform.position.y, -boid.transform.position.z);
-            }
-        }
+        Vector3 totalVel = new Vector3(0, 0, 0);
+
+        if(trackCohesion == true) { totalVel += Cohesion(b); }
+        if(trackAlignment == true) { totalVel += Alignment(b); }
+        if(trackSeperation == true) { totalVel += Separation(b); }
+        if(trackWaypoint == true) { totalVel += Waypoint(b); }
+
+
+        return totalVel;
     }
-    Vector3 Center(GameObject b) 
+    Vector3 Cohesion(GameObject b) 
     {
         Vector3 center = new Vector3(0, 0, 0);
+        int count = 1;
         foreach (GameObject boid in boids)
         {
-            if(boid != b)
+            if (Vector3.Distance(boid.transform.position, b.transform.position) < avoidRange*5)
             {
+                count += 1;
                 center += boid.transform.position;
             }
         }
+        center = center / count;
 
-        center = center / (maxBoids - 1);
-        Debug.DrawLine(center, b.transform.position, Color.white, 0.01f);
-
-        return (center - b.transform.position) / centerSpeed;
+        //Debug.DrawLine(b.transform.position, center, Color.white, 0.01f);
+        return (center - b.transform.position) / 100;
     }
-
-    Vector3 Avoide(GameObject b)
+    Vector3 Separation(GameObject b)
     {
-        Vector3 c = Vector3.zero;
+        Vector3 avoide = new Vector3(0, 0, 0);
 
         foreach (GameObject boid in boids)
         {
             if (boid != b)
             {
-                if(Vector3.Distance(boid.transform.position, b.transform.position) < avoidRange)
+                //d = ((x2 - x1)2 + (y2 - y1)2 + (z2 - z1)2)1/2  
+                if (Vector3.Distance(boid.transform.position, b.transform.position) < avoidRange)
                 {
-                    //d = ((x2 - x1)2 + (y2 - y1)2 + (z2 - z1)2)1/2  
-                    //Debug.Log("Dist: " + Vector3.Distance(boid.transform.position, b.transform.position));
-
-                    c =  c - (boid.transform.position - b.transform.position) /10;
-                    Debug.DrawLine(boid.transform.position, b.transform.position, Color.red, 0.01f);
+                    avoide += b.transform.position - boid.transform.position;
+                    //Debug.DrawLine(b.transform.position, boid.transform.position, Color.red, 0.01f);
                 }
             }
         }
-        return c;
+        return avoide;
     }
-    Vector3 Align(GameObject b)
+    Vector3 Alignment(GameObject b)
     {
         Vector3 speed = new Vector3(0, 0, 0);
+        int count = 1;
         foreach (GameObject boid in boids)
         {
             if (boid != b)
             {
-                speed = speed + boid.GetComponent<Rigidbody>().velocity;
+                if (Vector3.Distance(boid.transform.position, b.transform.position) < (avoidRange *2))
+                {
+                    count += 1;
+                    speed = speed + boid.GetComponent<Rigidbody>().velocity;
+                }
+            }
+        }
+        speed = speed/count;
+
+        return speed / 18;
+    }
+
+    void BreakOff(GameObject b)
+    {
+        Vector3 dash = new Vector3(0, 0, 0);
+        int count = 1;
+
+        List<GameObject> boidGroup = new List<GameObject>(); 
+
+        foreach (GameObject boid in boids)
+        {
+            if (boid != b)
+            {
+                if (Vector3.Distance(boid.transform.position, b.transform.position) < (avoidRange * 2))
+                {
+                    count += 1;
+                    dash += (b.transform.position - boid.transform.position);
+                    boidGroup.Add(boid);
+
+                    Debug.DrawLine(b.transform.position, boid.transform.position, Color.red, 0.01f);
+                }
             }
         }
 
-        speed = speed / (maxBoids - 1);
-
-        return (speed - b.GetComponent<Rigidbody>().velocity) / 200;
+        if (count > 5)
+        {
+            foreach (GameObject boid in boidGroup)
+            {
+                boid.GetComponent<Rigidbody>().velocity += (boid.GetComponent<Rigidbody>().velocity + dash) / 10;
+            }
+        }
     }
+    void LimitVelocity(GameObject b)
+    {
+        float maxSpeed = 10;
+        if(b.GetComponent<Rigidbody>().velocity.magnitude > maxSpeed)
+        {
+            b.GetComponent<Rigidbody>().velocity = b.GetComponent<Rigidbody>().velocity - (b.GetComponent<Rigidbody>().velocity / 2);
+        }
+    }
+
     Vector3 Waypoint(GameObject b)
     {
-        Vector3 center = waypoint;
-
-        if (Vector3.Distance(b.transform.position, center) > avoidRange)
-        {
-
-            return (center - b.transform.position) / centerSpeed;
-        }
-
-        Debug.DrawLine(center, b.transform.position, Color.white, 0.01f);
-
-        return Vector3.zero;
+        return (waypoint - b.transform.position) / 10;
     }
     Vector3 CastRay()
     {
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-        Debug.DrawRay(Camera.main.transform.position, ray.GetPoint(20),Color.blue,4);
+        Debug.DrawRay(Camera.main.transform.position, ray.GetPoint(20), Color.blue, 4);
         Debug.Log(ray.GetPoint(20));
-        return new Vector3(ray.GetPoint(20).x,0, ray.GetPoint(20).z);
+        return new Vector3(ray.GetPoint(20).x, 0, ray.GetPoint(20).z);
     }
-    
 
-    
-  
    
-
-
 }

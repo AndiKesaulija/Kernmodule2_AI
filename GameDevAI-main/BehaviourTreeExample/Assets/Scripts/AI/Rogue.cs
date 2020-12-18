@@ -60,22 +60,11 @@ public class Rogue : MonoBehaviour
         Enemy.Value = myEnemy;
         moveSpeed.Value = 0;
 
-
-        //TODO: Create your Behaviour tree here
-        BTBaseNode idle =
-            new BTSequence(
-                new BTSetTarget(Target, myPlayer),
-                new BTInverter(new BTCheckRange(myAgent, Target, 2)),
-                new BTAnimate(animator, "Crouch Idle"),
-                new BTStop(myNavMesh)
-                );
-        idle._name = "Idle";
-
         BTBaseNode follow =
             new BTPrioritySelector(
                 new BTSequence(
                     new BTSetTarget(Target, myPlayer),
-                    new BTCheckRange(myAgent, Target, 4),
+                    new BTCheckRange(myAgent, Target, 5),
                     new BTAnimate(animator, "Run"),
                     new BTMove(2.5f, myNavMesh, Target)
                     ),
@@ -126,9 +115,12 @@ public class Rogue : MonoBehaviour
 
                     new BTCheckTaskStatus(
                             new BTCheckBool(Enemy.Value.GetComponent<Guard>().isStunned, false),
-                            new BTSetBool(Enemy.Value.GetComponent<Guard>().isStunned, true),
                             new BTAnimate(animator, "Throw", "Crouch Idle"),
-                            new BTSetBool(hidden, false)
+                            new BTCheckTaskStatus(
+                                new BTWait(4),
+                                new BTSetBool(Enemy.Value.GetComponent<Guard>().isStunned, true),
+                                new BTSetBool(hidden, false)
+                                )
                             )
                     )
                  );

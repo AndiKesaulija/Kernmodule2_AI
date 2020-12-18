@@ -46,7 +46,7 @@ public class BTAnimate : BTBaseNode
             animator.Play(animation[0]);
         }
 
-
+        currentDuration = 0;
         return TaskStatus.Success;
     }
 }

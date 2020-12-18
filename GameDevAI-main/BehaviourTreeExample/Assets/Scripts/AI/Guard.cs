@@ -54,7 +54,7 @@ public class Guard : MonoBehaviour
             new BTPrioritySelector(
                 new BTSequence(
                     new BTCheckTaskStatus(
-                        new BTCheckRange(myAgent, targetPlayer, 10),
+                        new BTCheckRange(myAgent, targetPlayer, 15),
                             new BTSetBool(engaged,false),
                             new BTSetBool(Player.inCombat, false)
                         ),
@@ -67,7 +67,7 @@ public class Guard : MonoBehaviour
                         ),
 
                     new BTAnimate(animator, "Run"),
-                    new BTMove(3, agentNavMesh, targetWeapon)
+                    new BTMove(5, agentNavMesh, targetWeapon)
                     ),
                 new BTSequence(
                     new BTCheckRange(myAgent, targetPlayer, 1),
